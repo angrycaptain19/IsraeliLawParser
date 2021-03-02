@@ -187,15 +187,13 @@ def removeDuplicates(listToSort):
 # specified for our project, removes duplicate strings and empty strings
 def removeInnerDups(lst):
     if all_elements_are_lists(lst):
-        tmp = []
-        for x in lst:
-            tmp.append(removeInnerDups(x))
-        return tmp
+        tmp = [removeInnerDups(x) for x in lst]
     else:
         tmp = list(dict.fromkeys(lst))
         while tmp.count('') > 0:
             tmp.remove('')
-        return tmp
+
+    return tmp
 
 
 # removes arrays from the sort of [[]] or [] or [[[]]]
@@ -226,7 +224,7 @@ def sliceString(param, start, stop):
         return ''
     res = ''
     while start < stop:
-        res = res + param[start]
+        res += param[start]
         start = start + 1
     return res
 
@@ -242,8 +240,8 @@ def parsePointContent(content, p):
     res = ''
     i = 0
     while first_line[i].isdigit():
-        res = res + first_line[i]
-        i = i + 1
+        res += first_line[i]
+        i += 1
         if i == len(first_line):
             break
     # save the number of the point
@@ -253,8 +251,8 @@ def parsePointContent(content, p):
     i = 0
     # figure out where the real letters start after dots and quotes and spaces
     if i < len(first_line):
-        while first_line[i] == ' ' or first_line[i] == '*' or first_line[i] == '.' or first_line[i] == ',':
-            i = i + 1
+        while first_line[i] in [' ', '*', '.', ',']:
+            i += 1
             if i == len(first_line):
                 break
     # cut the line from where the string begins
@@ -269,9 +267,9 @@ def parsePointContent(content, p):
         if isSubPoint(line):
             inSubPointFlag = True
             p.sub_points.append(parseSubPoint(line))
-        elif inSubPointFlag == False:
+        elif not inSubPointFlag:
             p.content = p.content + '\n' + line
-        elif inSubPointFlag == True:
+        else:
             p.sub_points[-1].content = p.sub_points[-1].content + '\n' + line
     return p
 
@@ -333,24 +331,35 @@ def parsePart(line):
 
 # parse the signature, item1 XOR item2 has a keyword role in it ex: prime minister, minister of X
 def parseSignature(item1, item2):
-    if isSignature(item1):
-        z = Signature(item1, item2)
-    else:
-        z = Signature(item2, item1)
-    return z
+    return (
+        Signature(item1, item2)
+        if isSignature(item1)
+        else Signature(item2, item1)
+    )
 
 # returns a DateOfAccept object
 def parseDateOfAccept():
-    d = DateOfAccept(date_of_acceptance)
-    return d
+    return DateOfAccept(date_of_acceptance)
 
 
 # checks if line is subPoint, starts with "(Hebrew letter)"
 def isSubPoint(line):
     tmp = sliceString(line, 0, 3)
-    if tmp in ['(א)', '(ב)', '(ג)', '(ד)', '(ל)', '(ה)', '(ו)', '(ז)', '(ח)', '(ט)', '(י)', '(כ)', '(ס)']:
-        return True
-    return False
+    return tmp in [
+        '(א)',
+        '(ב)',
+        '(ג)',
+        '(ד)',
+        '(ל)',
+        '(ה)',
+        '(ו)',
+        '(ז)',
+        '(ח)',
+        '(ט)',
+        '(י)',
+        '(כ)',
+        '(ס)',
+    ]
 
 
 # checks if an arr is a Point according to analysis on our tools & files
@@ -363,41 +372,28 @@ def isPoint(arr):
         return False
     if len(arr[0]) == 1 and isEndOfPage(arr[0][0]):
         return False
-    if len(arr[1]) == 1 and isEndOfPage(arr[1][0]):
-        return False
-    return True
+    return len(arr[1]) != 1 or not isEndOfPage(arr[1][0])
 
 
 # check if line is Chapter
 def isChapter(line):
     item = (line.split(' ', 1))[0]
-    if fuzz.ratio(item, 'פרק') > 60:
-        return True
-    else:
-        return False
+    return fuzz.ratio(item, 'פרק') > 60
 
 
 def isSection(line):
     item = (line.split(' ', 1))[0]
-    if fuzz.ratio(item, 'סימן') > 60:
-        return True
-    else:
-        return False
+    return fuzz.ratio(item, 'סימן') > 60
 
 
 def isPart(line):
     item = (line.split(' ', 1))[0]
-    if fuzz.ratio(item, 'חלק') > 60:
-        return True
-    else:
-        return False
+    return fuzz.ratio(item, 'חלק') > 60
 
 
 # only the last line in every page could have many spaces
 def isEndOfPage(line):
-    if '             ' in line:
-        return True
-    return False
+    return '             ' in line
 
 
 # irrelvant info in the end of page
@@ -412,10 +408,11 @@ def isIrrelvantEndOfPage(line):
     last = lst[lst_length-1]
     if lst[lst_length-3] == 'עמ':
         delim = lst[lst_length-3]
-    if fuzz.ratio(delim, """עמ\'""") > 70:
-        if (last != '') and (last[0] == '.' or last[0].isdigit() == True):
-            return True
-    return False
+    return (
+        fuzz.ratio(delim, """עמ\'""") > 70
+        and (last != '')
+        and (last[0] == '.' or last[0].isdigit() == True)
+    )
 
 
 # the length of line seems absurd but its working
@@ -429,16 +426,12 @@ def isSignature(line):
     if fuzz.ratio('יושב ראש הכנסת', line) > 65:
         return True
     lst = line.split(' ')
-    if fuzz.ratio('שר', lst[0]) > 80:
-        return True
-    return False
+    return fuzz.ratio('שר', lst[0]) > 80
 
 
 # this function runs one time so no every sentence starting with the word "HOOK" is a title, dont worry
 def isLawName(line):
-    if fuzz.ratio('חוק', (line.split(' '))[0]) > 70:
-        return True
-    return False
+    return fuzz.ratio('חוק', (line.split(' '))[0]) > 70
 
 
 # Stage 1 & 2 & 3 of the pipeline, convert to docx, read the contents, fix the arrays
@@ -526,21 +519,21 @@ def parse(body):
             else:
                 for part in block:
                     for i in range(len(part)):
-                        if control_switch == True:
+                        if control_switch:
                             control_switch = False
                             continue
-                        if (i+1) < len(part):
-                            if isSignature(part[i]) or isSignature(part[i+1]):
-                                tmp = parseSignature(part[i], part[i+1])
-                                dict_arr[-1].signs.append(tmp)
-                                results.append(tmp)
-                                control_switch = True
+                        if (i + 1) < len(part) and (
+                            isSignature(part[i]) or isSignature(part[i + 1])
+                        ):
+                            tmp = parseSignature(part[i], part[i+1])
+                            dict_arr[-1].signs.append(tmp)
+                            results.append(tmp)
+                            control_switch = True
 
-                        if control_switch == False and parseLine(results, part[i]):
+                        if not control_switch and parseLine(results, part[i]):
                             continue
-                        else:
-                            results.append(Note(''))
-                            parseLine(results, part[i])
+                        results.append(Note(''))
+                        parseLine(results, part[i])
     results.append(parseDateOfAccept())
     date_flag = False
     return results
@@ -557,13 +550,13 @@ def fix_law(lego):
             first_index = int(item.number)
             last_point = item
             flag = False
-            result.append(item)
+            result.append(last_point)
             continue
         elif type(item) is Point:
             if int(item.number) == (first_index + 1):
-                first_index = first_index + 1
+                first_index += 1
                 last_point = item
-                result.append(item)
+                result.append(last_point)
                 continue
             else:
                 last_point.content = last_point.content + '\n' + item.header + ' ' + item.number + '\n' + item.content
@@ -585,7 +578,7 @@ def create_xml(lego, file_name):
     law_name_flag = False
 
     for item in lego:
-        if type(item) is LawHeader and law_name_flag == False:
+        if type(item) is LawHeader and not law_name_flag:
             title = ET.SubElement(root, 'title')
             content = ET.SubElement(title, 'content')
             p = ET.SubElement(content, 'p')
@@ -694,10 +687,7 @@ def dateCompare(x, y):
 # creates dict_file, sorted according to dates
 def create_dict():
     root = ET.Element('dictionary')
-    no_empty_dict = []
-    for x in dict_arr:
-        if len(x.lst) != 0 and len(x.date) == 10:
-            no_empty_dict.append(x)
+    no_empty_dict = [x for x in dict_arr if len(x.lst) != 0 and len(x.date) == 10]
     new_op = cmp_to_key(dateCompare)
     no_empty_dict.sort(key=new_op, reverse=False)
     for b in no_empty_dict:
